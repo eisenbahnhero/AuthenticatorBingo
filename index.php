@@ -21,7 +21,7 @@
 	if(!is_dir($config["data_dir"])){
 		mkdir($config["data_dir"]);
 	}
-	if(!is_dir($config["exchange_dir"])){
+	if(!is_dir($config["exchange_dir"]) && $config["send_events_to_exchange_dir"]){
 		mkdir($config["exchange_dir"]);
 	}
 

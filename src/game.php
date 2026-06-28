@@ -228,24 +228,24 @@
 				$obj["is_already_marked"] = true;
 			}
 			$this->marked_numbers[] = $obj;
+
+			// Affect the new number a new bingo to the players
+			$bingos_after = $this->get_all_players();
+			$compare = array();
+			foreach($bingos_before as $bb){
+				foreach($bingos_after as $ba){
+					if($bb["player"] == $ba["player"]){
+						$compare[] = array("player" => $bb["player"], "bingos_before" => $bb["bingos"], "bingos_after" => $ba["bingos"]);
+					}
+				}
+			}
 			
-			if($config["write_alerts_to_exchange_dir"]){
+			if($config["send_events_to_exchange_dir"] && !$is_already_marked){
 				// Write new marked number to exchange dir
 				$obj = array("type" => "new_number_marked", "number" => $num, "player" => $player, "timestamp" => time());
 				$out_file = $config["exchange_dir"] . uniqid() . ".json";
 				$json = json_encode($obj, JSON_PRETTY_PRINT);
 				file_put_contents($out_file, $json);
-
-				// Affect the new number a new bingo to the players
-				$bingos_after = $this->get_all_players();
-				$compare = array();
-				foreach($bingos_before as $bb){
-					foreach($bingos_after as $ba){
-						if($bb["player"] == $ba["player"]){
-							$compare[] = array("player" => $bb["player"], "bingos_before" => $bb["bingos"], "bingos_after" => $ba["bingos"]);
-						}
-					}
-				}
 
 				// Write new bingos to exchange dir
 				foreach($compare as $c){
@@ -258,6 +258,39 @@
 				}
 			}
 			
+			if($config["send_events_to_webhook"] && !$is_already_marked){
+				$events = array();
+				$events[] = array("type" => "new_number_marked", "number" => $num, "player" => $player, "timestamp" => time());
+				foreach($compare as $c){
+					if($c["bingos_after"] > $c["bingos_before"]){
+						$events[] = array("type" => "new_bingo", "player" => $c["player"], "bingos" => $c["bingos_after"], "timestamp" => time()+1);
+					}
+				}
+
+				#cURL events
+				$body = json_encode([
+					"events" => $events
+				]);
+				$ch = curl_init($config["webhook_url"]);
+				curl_setopt_array($ch, [
+					CURLOPT_POST           => true,
+					CURLOPT_POSTFIELDS     => $body,
+					CURLOPT_RETURNTRANSFER => true,
+					CURLOPT_HTTPHEADER     => [
+						"Content-Type: application/json",
+						"Content-Length: " . strlen($body)
+					]
+				]);
+				$response = curl_exec($ch);
+				$httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+				$error    = curl_error($ch);
+
+				curl_close($ch);
+				if ($error) {
+					echo "cURL Error to Webhook: " . $error;
+				}
+			}
+
 			return true;
 		}
 		

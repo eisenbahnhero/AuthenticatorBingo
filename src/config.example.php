@@ -3,10 +3,16 @@
 	#Title of application
 	$config["title"] = "Authenticator Bingo";
 	
-	#Data and exchange directories
+	#Data dir
 	$config["data_dir"] = "data/";
+
+	#Send events to exchange dir
+	$config["send_events_to_exchange_dir"] = false;
 	$config["exchange_dir"] = "exchange/";
-	$config["write_alerts_to_exchange_dir"] = false;
+
+	#Send events to a webhook trigger (POST) as json
+	$config["send_events_to_webhook"] = false;
+	$config["webhook_url"] = "your-webhook-url";
 
 	#Authentication mode
 	$config["auth_mode"] = "IP"; # IP | Windows

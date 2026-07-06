@@ -1,3 +1,6 @@
+<?php
+// Chooser: card selection UI
+?>
 
 <div class="register-box" id="register-box">
     <div class="icon">🎯</div>
@@ -13,14 +16,8 @@
                 <small>24 Zahlen + FREE, frisch aus dem Rauschen des Universums</small>
             </span>
         </label>
-        <label class="mode-label" for="opt2">
-            <input type="radio" name="card_type" value="self-assigned" id="opt2">
-            <span class="mode-icon">✏️</span>
-            <span class="mode-text">
-                <strong>Selbst zuweisen</strong>
-                <small>Du bestimmst 24 Zahlen — Mitte ist immer FREE</small>
-            </span>
-        </label>
+        <!-- Selbst zuweisen entfernt -->
+        <!-- Ölpreis-Option entfernt -->
         <label class="mode-label" for="opt4">
             <input type="radio" name="card_type" value="chicken-shit" id="opt4">
             <span class="mode-icon">🐔</span>
@@ -37,13 +34,6 @@
                 <small>Zeichne ein Muster — deine Bewegungen erzeugen einen einzigartigen Hash</small>
             </span>
         </label>
-    </div>
-
-    <!-- Self-assign grid (24 Felder, Mitte = FREE) -->
-    <div id="self-assign-grid" style="display:none;width:100%;max-width:480px;">
-        <div class="card-title" style="margin-bottom:0.75rem;">Deine 24 Zahlen (10–99, keine Duplikate) — Mitte ist FREE</div>
-        <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px;" id="self-grid"></div>
-        <center><p class="form-hint" style="margin-top:0.6rem;">Noch <span id="remaining">24</span> Felder offen</p></center>
     </div>
 
     
@@ -110,6 +100,7 @@
     <form method="POST" id="register-form" style="display:flex;flex-direction:column;align-items:center;gap:1rem;width:100%;max-width:520px;">
         <input type="hidden" name="register" />
         <input type="hidden" name="card_numbers" id="card-numbers-input" />
+        <input type="hidden" name="register_method" id="register-method-input" value="Zufällig" />
         <button type="submit" class="btn-primary" id="submit-btn" style="font-size:0.95rem;padding:0.85rem 2rem;" disabled>
             Jetzt teilnehmen
         </button>
@@ -132,26 +123,6 @@
 .mode-text { display: flex; flex-direction: column; gap: 2px; }
 .mode-text strong { font-family: 'Exo 2', sans-serif; font-weight: 700; font-size: 0.9rem; color: var(--text); }
 .mode-text small { font-size: 0.78rem; color: var(--text-muted); line-height: 1.4; }
-
-.self-input {
-    width: 100%; aspect-ratio: 1; text-align: center;
-    background: var(--bg); border: 1px solid var(--border2);
-    border-radius: 8px; color: var(--text);
-    font-family: 'Exo 2', sans-serif; font-size: 0.95rem; font-weight: 700;
-    outline: none; transition: border-color 0.2s, box-shadow 0.2s;
-    -moz-appearance: textfield;
-}
-.self-input::-webkit-inner-spin-button, .self-input::-webkit-outer-spin-button { -webkit-appearance: none; }
-.self-input:focus { border-color: var(--lime); box-shadow: 0 0 0 3px var(--lime-glow); }
-.self-input.error { border-color: #ef4444; box-shadow: 0 0 0 2px rgba(239,68,68,0.2); }
-.self-input.ok { border-color: var(--lime-dim); }
-.self-free {
-    width: 100%; aspect-ratio: 1; display: flex; align-items: center; justify-content: center;
-    background: rgba(163,230,53,0.08); border: 1px solid rgba(163,230,53,0.3);
-    border-radius: 8px; font-family: 'Exo 2', sans-serif;
-    font-size: 0.7rem; font-weight: 700; color: var(--lime-text); letter-spacing: 0.05em;
-}
-
 .bingo-cell.free-cell {
     background: rgba(163,230,53,0.1) !important;
     border-color: rgba(163,230,53,0.35) !important;
@@ -228,9 +199,20 @@
     }
 
     // ── mode switch ───────────────────────────────────
+    function updateRegisterMethod() {
+        const mode = document.querySelector('input[name="card_type"]:checked')?.value;
+        const labels = {
+            random: 'Zufällig',
+            'chicken-shit': 'Chickenshit',
+            'mouse-entropy': 'Maus-Entrophie'
+        };
+        document.getElementById('register-method-input').value = labels[mode] || 'Zufällig';
+    }
+
     function hideExtras() {
-        ['self-assign-grid','chicken-arena','mouse-entropy-wrap'].forEach(id => {
-            document.getElementById(id).style.display = 'none';
+        ['chicken-arena','mouse-entropy-wrap'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) { el.style.display = 'none'; }
         });
     }
 
@@ -238,72 +220,29 @@
         r.addEventListener('change', onModeChange);
     });
 
+    document.getElementById('register-form').addEventListener('submit', updateRegisterMethod);
+
     function onModeChange() {
         const mode = document.querySelector('input[name="card_type"]:checked').value;
+        updateRegisterMethod();
         hideExtras();
         setNotReady();
 
         if (mode === 'random') {
             const nums24 = shuffleArr(fullPool()).slice(0, 24);
             setReady(withFree(nums24));
-        } else if (mode === 'self-assigned') {
-            document.getElementById('self-assign-grid').style.display = 'block';
-            buildSelfGrid();
         } else if (mode === 'chicken-shit') {
-            document.getElementById('chicken-arena').style.display = 'block';
-            startChicken();
+            const chickenEl = document.getElementById('chicken-arena');
+            if (chickenEl) {
+                chickenEl.style.display = 'block';
+                if (typeof startChicken === 'function') { startChicken(); }
+            }
         } else if (mode === 'mouse-entropy') {
-            document.getElementById('mouse-entropy-wrap').style.display = 'block';
-            initEntropyCanvas();
-        }
-    }
-
-    // ── self-assign (24 Felder + FREE-Feld) ──────────
-    function buildSelfGrid() {
-        const grid = document.getElementById('self-grid');
-        grid.innerHTML = '';
-        for (let i = 0; i < 25; i++) {
-            if (i === FREE_INDEX) {
-                const free = document.createElement('div');
-                free.className = 'self-free';
-                free.textContent = 'FREE';
-                grid.appendChild(free);
-                continue;
+            const mouseEl = document.getElementById('mouse-entropy-wrap');
+            if (mouseEl) {
+                mouseEl.style.display = 'block';
+                if (typeof initEntropyCanvas === 'function') { initEntropyCanvas(); }
             }
-            const inp = document.createElement('input');
-            inp.type = 'number';
-            inp.min = 10; inp.max = 99;
-            inp.className = 'self-input';
-            inp.placeholder = '--';
-            inp.dataset.slot = i;
-            inp.addEventListener('input', validateSelf);
-            grid.appendChild(inp);
-        }
-    }
-
-    function validateSelf() {
-        const inputs = [...document.querySelectorAll('.self-input')];
-        const vals = inputs.map(i => parseInt(i.value));
-        const seen = new Set();
-        let ok = 0;
-        inputs.forEach((inp, idx) => {
-            const v = vals[idx];
-            if (!inp.value || isNaN(v) || v < 10 || v > 99) {
-                inp.className = 'self-input';
-            } else if (seen.has(v)) {
-                inp.className = 'self-input error';
-            } else {
-                seen.add(v);
-                inp.className = 'self-input ok';
-                ok++;
-            }
-        });
-        document.getElementById('remaining').textContent = 24 - ok;
-        if (ok === 24) {
-            const nums24 = vals;
-            setReady(withFree(nums24));
-        } else {
-            setNotReady('Noch ' + (24 - ok) + ' Felder offen');
         }
     }
 

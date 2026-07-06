@@ -1,5 +1,8 @@
 <?php
+	session_start();
+
 	require_once 'src/config.php';
+	require_once 'src/events.php';
 	require_once 'src/auth.php';
 	require_once 'src/game.php';
 
@@ -28,54 +31,62 @@
 	$current_game_id = date("Y-m");
 	$current_game = new Game($current_game_id);
 	$should_be_saved = false;
-	$alert_message = null;
+	$alert_message = array();
 	
-	//Register for current round
-	if(isset($_REQUEST["register"])){
-		if(!isset($_REQUEST["card_numbers"])){
-			$current_game->register_player($current_user);
-		}
-		else{
-			$card_numbers = json_decode($_REQUEST["card_numbers"], true);
-			$card = array();
-			$curr_arr = array();
-			for($i = 0; $i < sizeof($card_numbers); $i++){
-				$curr_arr[] = $card_numbers[$i] == null ? "FREE" : $card_numbers[$i];
-				if(sizeof($curr_arr) == 5){
-					$card[] = $curr_arr;
-					$curr_arr = array();
+	if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+
+		//Register for current round
+		if(isset($_REQUEST["register"])){
+			if(!isset($_REQUEST["card_numbers"])){
+				$current_game->register_player($current_user);
+			}
+			else{
+				$card_numbers = json_decode($_REQUEST["card_numbers"], true);
+				$card = array();
+				$curr_arr = array();
+				for($i = 0; $i < sizeof($card_numbers); $i++){
+					$curr_arr[] = $card_numbers[$i] == null ? "FREE" : $card_numbers[$i];
+					if(sizeof($curr_arr) == 5){
+						$card[] = $curr_arr;
+						$curr_arr = array();
+					}
 				}
+
+				$method = "-";
+				if(isset($_REQUEST["register_method"])){
+					$method = $_REQUEST["register_method"];
+				}
+
+				$current_game->register_player($current_user, $card, $method);
 			}
-			$current_game->register_player($current_user, $card);
+			$should_be_saved = true;
 		}
-		$should_be_saved = true;
-	}
-	
-	//Mark a new number
-	if(isset($_REQUEST["mark"])){
-		if($current_game->is_marked($_REQUEST["mark"])){
-			$who = $current_game->who_had_marked($_REQUEST["mark"]);
-			$resp = $current_game->mark_number($_REQUEST["mark"], $current_user, true);
-			if($resp){ 
-				$alert_message = "Die Zahl hatte <strong>" . $who["player"] . "</strong> schon am " . date("d.m.Y H:i", $who["timestamp"]) . " Uhr markiert.";
-				$should_be_saved = true;
-			}
-			else{ $alert_message = "Die Zahl konnte nicht markiert werden."; }
+		
+		//Mark a new number
+		if(isset($_REQUEST["mark"])){
+			$current_game->mark_number($_REQUEST["mark"], $current_user);
+			$should_be_saved = true;
 		}
-		else{
-			$resp = $current_game->mark_number($_REQUEST["mark"], $current_user);
-			if($resp){
-				$alert_message = "Die <strong>" . $_REQUEST["mark"] . "</strong> wurde erfolgreich markiert!";
-				$should_be_saved = true;
-			}
-			else{ $alert_message = "Die Zahl konnte nicht markiert werden."; }
+		
+		//Save game
+		if($should_be_saved){
+			$current_game->save_game();
 		}
+
+		//Push new Events
+		push_events();
+
+		//Redirect to avoid resubmission
+		$_SESSION["alert_message"] = get_events();
+		header("Location: " . $_SERVER['PHP_SELF']);
+    	exit;
 	}
-	
-	//Save game
-	if($should_be_saved){
-		$current_game->save_game();
+
+	if(isset($_SESSION["alert_message"])){
+		$alert_message = $_SESSION["alert_message"];
+		unset($_SESSION["alert_message"]);
 	}
+
 ?>
 
 <!DOCTYPE html>
@@ -118,9 +129,7 @@
 				<div class="round-badge">Runde <?php echo $current_game_id; ?></div>
 
 				<!-- ── ALERT ──────────────────────────────── -->
-				<?php if($alert_message): ?>
-					<div class="alert-bar"><?php echo $alert_message; ?></div>
-				<?php endif; ?>
+				<?php require_once("pages/alerts.php"); ?>
 
 				<!-- ── TAB NAVIGATION ─────────────────────── -->
 				<nav class="tab-nav" role="tablist">

@@ -66,14 +66,18 @@
 			return true;
 		}
 
-		private function get_bingos_count($card){
+		private function get_bingos_count(array $card, ?array $numbers = null){
+			if($numbers === null){
+				$numbers = $this->marked_numbers;
+			}
+
 			$bingos = 0;
 			
 			//Rows
 			for($i = 0; $i < 5; $i++){
 				$c = 0;
 				for($j = 0; $j < 5; $j++){
-					if($card[$i][$j] == "FREE" || $this->is_marked($card[$i][$j])){
+					if($card[$i][$j] == "FREE" || $this->is_marked($card[$i][$j], $numbers)){
 						$c++;
 					}
 				}
@@ -84,7 +88,7 @@
 			for($i = 0; $i < 5; $i++){
 				$c = 0;
 				for($j = 0; $j < 5; $j++){
-					if($card[$j][$i] == "FREE" || $this->is_marked($card[$j][$i])){
+					if($card[$j][$i] == "FREE" || $this->is_marked($card[$j][$i], $numbers)){
 						$c++;
 					}
 				}
@@ -94,10 +98,10 @@
 			//Diagonals
 			$c1 = 0; $c2 = 0;
 			for($i = 0; $i < 5; $i++){
-				if($card[$i][$i] == "FREE" || $this->is_marked($card[$i][$i])){
+				if($card[$i][$i] == "FREE" || $this->is_marked($card[$i][$i], $numbers)){
 					$c1++;
 				}
-				if($card[$i][4-$i] == "FREE" || $this->is_marked($card[$i][4-$i])){
+				if($card[$i][4-$i] == "FREE" || $this->is_marked($card[$i][4-$i], $numbers)){
 					$c2++;
 				}
 			}
@@ -139,7 +143,7 @@
 			file_put_contents($path, $game);
 		}
 		
-		public function register_player(string $player, $card = null){
+		public function register_player(string $player, array $card = null, string $method = "-"){
 			if($this->is_registered($player)){
 				return;
 			}
@@ -153,6 +157,7 @@
 			}
 			
 			$this->players[] = array("player" => $player, "card" => $card);	
+			add_event("new_player", array("player" => $player, "method" => $method));
 		}
 		
 		public function get_all_players(){
@@ -161,6 +166,51 @@
 				$resp[] = array("player" => $p["player"], "bingos" => $this->get_bingos_count($p["card"]), "card" => $p["card"], "marked_by_himself" => $this->how_much_numbers_marked_by_himself($p["player"]));
 			}
 			return $resp;
+		}
+
+		public function get_best_list(){
+			$ap = $this->get_all_players();
+
+			//Get last bingo time
+			for($i = 0; $i < count($ap); $i++){
+				$curr_nums = array();
+				$last_bingo_time = null;
+				$last_bingo_count = 0;
+
+				foreach($this->marked_numbers as $mn){
+					$curr_nums[] = $mn;
+					$bingos = $this->get_bingos_count($ap[$i]["card"], $curr_nums);
+
+					if($bingos > $last_bingo_count){
+						$last_bingo_count = $bingos;
+						$last_bingo_time = $mn["timestamp"];
+					}
+				}
+
+				$ap[$i]["last_bingo_time"] = $last_bingo_time;
+			}
+
+			//Sort by bingos desc and last bingo time asc
+			usort($ap, function($a, $b){
+				if($a["bingos"] == $b["bingos"]){
+					return $a["last_bingo_time"] - $b["last_bingo_time"];
+				}
+				return $b["bingos"] - $a["bingos"];
+			});
+
+			//Calculate ranks
+			$rank = 1;
+			for($i = 0; $i < count($ap); $i++){
+				$ap[$i]["rank"] = $rank;
+				$rank += 1;
+				if($i + 1 < count($ap)){
+					if($ap[$i]["bingos"] == $ap[$i + 1]["bingos"] && $ap[$i]["last_bingo_time"] == $ap[$i + 1]["last_bingo_time"]){
+						$rank -= 1;
+					}
+				}
+			}
+
+			return $ap;
 		}
 
 		public function get_all_players_blanko($skip = null){
@@ -204,8 +254,9 @@
 			return null;
 		}
 		
-		public function mark_number(int $num, string $player, bool $is_already_marked = false){
+		public function mark_number(int $num, string $player){
 			global $config;
+			$is_already_marked = $this->is_marked($num);
 			
 			if($num > 99 || $num < 10 || $num == null){
 				return false;
@@ -240,54 +291,23 @@
 				}
 			}
 			
-			if($config["send_events_to_exchange_dir"] && !$is_already_marked){
-				// Write new marked number to exchange dir
-				$obj = array("type" => "new_number_marked", "number" => $num, "player" => $player, "timestamp" => time());
-				$out_file = $config["exchange_dir"] . uniqid() . ".json";
-				$json = json_encode($obj, JSON_PRETTY_PRINT);
-				file_put_contents($out_file, $json);
-
-				// Write new bingos to exchange dir
-				foreach($compare as $c){
-					if($c["bingos_after"] > $c["bingos_before"]){
-						$obj = array("type" => "new_bingo", "player" => $c["player"], "bingos" => $c["bingos_after"], "timestamp" => time()+1);
-						$out_file = $config["exchange_dir"] . uniqid() . ".json";
-						$json = json_encode($obj, JSON_PRETTY_PRINT);
-						file_put_contents($out_file, $json);
-					}
-				}
+			//Add event new number marked
+			if($is_already_marked){
+				add_event("number_marked_again", array("number" => $num, "player" => $player));
 			}
-			
-			if($config["send_events_to_webhook"] && !$is_already_marked){
-				$events = array();
-				$events[] = array("type" => "new_number_marked", "number" => $num, "player" => $player, "timestamp" => time());
-				foreach($compare as $c){
-					if($c["bingos_after"] > $c["bingos_before"]){
-						$events[] = array("type" => "new_bingo", "player" => $c["player"], "bingos" => $c["bingos_after"], "timestamp" => time()+1);
+			else{
+				add_event("new_number_marked", array("number" => $num, "player" => $player));
+			}
+
+			//Add event new bingos
+			foreach($compare as $c){
+				if($c["bingos_after"] > $c["bingos_before"]){
+					if($c["bingos_after"] >= 12){
+						add_event("new_ultimate_bingo", array("player" => $c["player"], "bingos" => $c["bingos_after"]));
 					}
-				}
-
-				#cURL events
-				$body = json_encode([
-					"events" => $events
-				]);
-				$ch = curl_init($config["webhook_url"]);
-				curl_setopt_array($ch, [
-					CURLOPT_POST           => true,
-					CURLOPT_POSTFIELDS     => $body,
-					CURLOPT_RETURNTRANSFER => true,
-					CURLOPT_HTTPHEADER     => [
-						"Content-Type: application/json",
-						"Content-Length: " . strlen($body)
-					]
-				]);
-				$response = curl_exec($ch);
-				$httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-				$error    = curl_error($ch);
-
-				curl_close($ch);
-				if ($error) {
-					echo "cURL Error to Webhook: " . $error;
+					else{
+						add_event("new_bingo", array("player" => $c["player"], "bingos" => $c["bingos_after"]));
+					}
 				}
 			}
 
@@ -308,8 +328,11 @@
 			return $this->marked_numbers;
 		}
 		
-		public function is_marked(int $num){
-			foreach($this->marked_numbers as $mn){
+		public function is_marked(int $num, ?array $numbers = null){
+			if($numbers === null){
+				$numbers = $this->marked_numbers;
+			}
+			foreach($numbers as $mn){
 				if($mn["number"] == $num){
 					return true;
 				}

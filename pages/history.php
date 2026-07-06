@@ -4,26 +4,12 @@
 					<!-- Leaderboard -->
 					<div class="card">
 						<div class="card-title">Rangliste</div>
-						<?php
-							$ap = $current_game->get_all_players();
-							usort($ap, function($a, $b){ return $b["bingos"] - $a["bingos"]; });
-
-							$pos = 1;
-							$max_bingos = $ap[0]["bingos"];
-							for($i = 1; $i < sizeof($ap); $i++){
-								if($ap[$i]["bingos"] == $max_bingos){
-									$pos += 1;
-								}
-								else{
-									break;
-								}
-							}
-
-						?>
 						<div class="leaderboard-list">
 							<?php
+								$ap = $current_game->get_best_list();
+								$pos = 1;
 								for($i = 0; $i < sizeof($ap); $i++){
-									$rank = $i + 1;
+									$rank = $ap[$i]["rank"];
 									$cls = $rank <= $pos ? "lb-row rank-1" : "lb-row";
 									$initials = mb_strtoupper(mb_substr($ap[$i]["player"], 0, 2));
 									$medal = $rank <= $pos ? "★" : ($rank === 2 ? "2." : ($rank === 3 ? "3." : $rank . "."));

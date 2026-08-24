@@ -4,7 +4,7 @@
 		Hier werden die Bingos aller bisherigen Runden zusammenaddiert. Wer hat über die Zeit die meisten Bingos erzielt? Wer ist der unbeständige Aufsteiger, wer der ewige Zweite, wer der Glückspilz, wer ist der wahre King?
 	</p>
 	<?php
-		$ap = get_overall_statistics($archiv);
+		$ap = get_overall_statistics($game_history);
 		usort($ap, function($a, $b){ return $b["bingos"] - $a["bingos"]; });
 		$pos = 1;
 		$max_bingos = $ap[0]["bingos"];

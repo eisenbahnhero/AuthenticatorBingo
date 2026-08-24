@@ -5,6 +5,7 @@
 	require_once 'src/events.php';
 	require_once 'src/auth.php';
 	require_once 'src/game.php';
+	require_once 'src/achievements.php';
 
 	//ACL check
 	if($config["use_acl"]){
@@ -32,8 +33,14 @@
 	$current_game = new Game($current_game_id);
 	$should_be_saved = false;
 	$alert_message = array();
+	$game_history = get_all_games();
+	
+	Achievement::setGameHistory($game_history);
+	Achievement::setUser($current_user);
 	
 	if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+
+		$achievements_before = getAchievementSnapshot();
 
 		//Register for current round
 		if(isset($_REQUEST["register"])){
@@ -73,6 +80,20 @@
 			$current_game->save_game();
 		}
 
+		
+		//Update game_history
+		for($i = 0; $i < sizeof($game_history); $i++){
+			if($game_history[$i]['id'] == $current_game->get_id()){
+				$game_history[$i]['game'] = $current_game;
+			}
+		}
+
+		//Achievements
+		Achievement::setGameHistory($game_history);
+		$achievements_after = getAchievementSnapshot();
+		compareAchievementSnapshots($achievements_before, $achievements_after);
+
+
 		//Push new Events
 		push_events();
 
@@ -95,7 +116,7 @@
 		<title><?php echo $config["title"];?></title>
 		<meta charset="UTF-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-		<link rel="stylesheet" href="src/stylesheet.css" />
+		<link rel="stylesheet" href="src/stylesheet.css?v=<?php echo filemtime(__DIR__ . '/src/stylesheet.css'); ?>" />
 		<link rel="apple-touch-icon" sizes="180x180" href="favicon/apple-touch-icon.png">
 		<link rel="icon" type="image/png" sizes="32x32" href="favicon/favicon-32x32.png">
 		<link rel="icon" type="image/png" sizes="16x16" href="favicon/favicon-16x16.png">
@@ -135,7 +156,8 @@
 				<nav class="tab-nav" role="tablist">
 					<button class="tab-btn active" onclick="switchTab('spielkarte', this)" role="tab">Spielkarte</button>
 					<button class="tab-btn" onclick="switchTab('uebersicht', this)" role="tab">Verlauf &amp; Rangliste</button>
-					<button class="tab-btn" onclick="switchTab('gesamtuebersicht', this)" role="tab">Gesamtübersicht</button>
+					<button class="tab-btn" onclick="switchTab('achievements', this)" role="tab">Errungenschaften</button>
+					<button class="tab-btn" onclick="switchTab('gesamtuebersicht', this)" role="tab">Gesamtübersicht</button>
 					<button class="tab-btn" onclick="switchTab('regeln', this)" role="tab">Spielregeln</button>
 					<button class="tab-btn" onclick="switchTab('archiv', this)" role="tab">Archiv</button>
 				</nav>
@@ -148,6 +170,11 @@
 				<!-- /tab-verlauf-rangliste -->
 				<div id="tab-uebersicht" class="tab-pane">
 					<?php require_once("pages/history.php"); ?>
+				</div>
+
+				<!-- /tab-achievements -->
+				<div id="tab-achievements" class="tab-pane">
+					<?php require_once("pages/achievements.php"); ?>
 				</div>
 
 				<!-- /tab-regeln -->

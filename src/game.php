@@ -168,6 +168,14 @@
 			return $resp;
 		}
 
+		public function get_all_player_names(){
+			$names = array();
+			foreach($this->players as $p){
+				$names[] = $p["player"];
+			}
+			return $names;
+		}
+
 		public function get_best_list(){
 			$ap = $this->get_all_players();
 

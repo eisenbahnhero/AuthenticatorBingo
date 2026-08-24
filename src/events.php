@@ -53,10 +53,6 @@
         global $all_user_events, $config;
         if(sizeof($all_user_events) == 0) return;
 
-        echo "<pre>";
-        print_r($all_user_events);
-        echo "</pre>";
-
         if($config["send_events_to_exchange_dir"]){
             push_events_to_exchange_dir();
         }

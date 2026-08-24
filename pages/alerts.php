@@ -28,6 +28,14 @@
                 echo_alert("ULTIMATIVES BINGO für Spieler: " . $event["player"] . " (Bingos: " . $event["bingos"] . ")");
                 break;
 
+            case "new_achievement_unlocked":
+                echo_alert($event["player"] . ' hat das Achievement "' . $event['achievement'] . '" freigeschaltet');
+                break;
+
+            case "next_achievement_level_reached":
+                echo_alert($event["player"] . ' hat bei "' . $event['achievement'] . '" ein neues Level erreicht: Level ' . $event['level']);
+                break;
+
         }
     }
 

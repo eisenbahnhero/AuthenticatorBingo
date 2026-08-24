@@ -17,7 +17,6 @@
             </span>
         </label>
         <!-- Selbst zuweisen entfernt -->
-        <!-- Ölpreis-Option entfernt -->
         <label class="mode-label" for="opt4">
             <input type="radio" name="card_type" value="chicken-shit" id="opt4">
             <span class="mode-icon">🐔</span>
@@ -35,8 +34,6 @@
             </span>
         </label>
     </div>
-
-    
 
     <!-- Chicken arena -->
     <div id="chicken-arena" style="display:none;width:100%;max-width:560px;">

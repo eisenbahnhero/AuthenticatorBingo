@@ -6,11 +6,10 @@
 					</div>
 
 					<?php
-						$archiv = get_all_games();
-						usort($archiv, function($a, $b){
+						usort($game_history, function($a, $b){
 							return strcmp($b["id"], $a["id"]);
 						});
-						foreach($archiv as $curr){
+						foreach($game_history as $curr){
 							if($curr["id"] == $current_game_id) continue;
 					?>
 						<div class="card">

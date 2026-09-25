@@ -157,7 +157,7 @@
 			}
 			
 			$this->players[] = array("player" => $player, "card" => $card);	
-			add_event("new_player", array("player" => $player, "method" => $method));
+			add_event("new_player", array("player" => $player, "method" => $method), "Neuer Spieler registriert: " . $player . " (Methode: " . $method . ")", "Neuer Spieler: " . $player);
 		}
 		
 		public function get_all_players(){
@@ -301,20 +301,21 @@
 			
 			//Add event new number marked
 			if($is_already_marked){
-				add_event("number_marked_again", array("number" => $num, "player" => $player));
+				$who = $this->who_had_marked($num);
+				add_event("number_marked_again", array("number" => $num, "player" => $player), "Die Zahl " . $num . " hatte <strong>" . $who["player"] . "</strong> schon am " . date("d.m.Y H:i", $who["timestamp"]) . " Uhr markiert.", $player . ": " . $num . " (war bereits markiert)");
 			}
 			else{
-				add_event("new_number_marked", array("number" => $num, "player" => $player));
+				add_event("new_number_marked", array("number" => $num, "player" => $player), "Neue Zahl markiert: " . $num, $player . ": " . $num);
 			}
 
 			//Add event new bingos
 			foreach($compare as $c){
 				if($c["bingos_after"] > $c["bingos_before"]){
 					if($c["bingos_after"] >= 12){
-						add_event("new_ultimate_bingo", array("player" => $c["player"], "bingos" => $c["bingos_after"]));
+						add_event("new_ultimate_bingo", array("player" => $c["player"], "bingos" => $c["bingos_after"]), "ULTIMATIVES BINGO für Spieler: " . $c["player"] . " (Bingos: " . $c["bingos_after"] . ")", "<strong><span style=\"color: red;\">ULTIMATIVES</span> BINGO!!!</strong> - " . $c["player"] . ": " . $c["bingos_after"] . " Bingo's");
 					}
 					else{
-						add_event("new_bingo", array("player" => $c["player"], "bingos" => $c["bingos_after"]));
+						add_event("new_bingo", array("player" => $c["player"], "bingos" => $c["bingos_after"]), "Neuer Bingo für Spieler: " . $c["player"] . " (Bingos: " . $c["bingos_after"] . ")", "<strong>BINGO!!!</strong> - " . $c["player"] . ": " . $c["bingos_after"] . " Bingo's");
 					}
 				}
 			}
@@ -346,6 +347,16 @@
 				}
 			}
 			return false;
+		}
+
+		public function how_often_marked(int $num){
+			$count = 0;
+			foreach($this->marked_numbers as $mn){
+				if($mn["number"] == $num){
+					$count++;
+				}
+			}
+			return $count;
 		}
 		
 		public function who_had_marked(int $num){
@@ -392,6 +403,7 @@
 				$coverage[$mn["player"]]++;
 			}
 
+			arsort($coverage);
 			return $coverage;
 		}
 

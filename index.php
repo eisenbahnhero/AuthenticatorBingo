@@ -35,12 +35,7 @@
 	$alert_message = array();
 	$game_history = get_all_games();
 	
-	Achievement::setGameHistory($game_history);
-	Achievement::setUser($current_user);
-	
 	if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-
-		$achievements_before = getAchievementSnapshot();
 
 		//Register for current round
 		if(isset($_REQUEST["register"])){
@@ -80,20 +75,6 @@
 			$current_game->save_game();
 		}
 
-		
-		//Update game_history
-		for($i = 0; $i < sizeof($game_history); $i++){
-			if($game_history[$i]['id'] == $current_game->get_id()){
-				$game_history[$i]['game'] = $current_game;
-			}
-		}
-
-		//Achievements
-		Achievement::setGameHistory($game_history);
-		$achievements_after = getAchievementSnapshot();
-		compareAchievementSnapshots($achievements_before, $achievements_after);
-
-
 		//Push new Events
 		push_events();
 
@@ -107,6 +88,9 @@
 		$alert_message = $_SESSION["alert_message"];
 		unset($_SESSION["alert_message"]);
 	}
+
+	Achievement::setGameHistory($game_history);
+	Achievement::setUser($current_user);
 
 ?>
 

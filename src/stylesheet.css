@@ -22,6 +22,12 @@
   --text-muted: #64748b;
   --text-soft:  #94a3b8;
   --green-mark: #22c55e;
+
+  /* ── Heatmap-Farbskala (jet-artig: kalt → warm → heiß) ── */
+  --heat-cold:   #c0cd00;   /* kräftiges Blau  = niedrig */
+  --heat-mid:    #d29f1c;   /* sattes Gelb     = mittel */
+  --heat-hot:    #c32a2a;   /* leuchtendes Rot = hoch   */
+
   --radius:     10px;
   --radius-lg:  16px;
 }
@@ -186,6 +192,7 @@ body {
   margin-bottom: 1.2rem;
   display: flex;
   align-items: center;
+  justify-content: flex-start;
   gap: 0.5rem;
 }
 
@@ -196,6 +203,7 @@ body {
   height: 14px;
   background: var(--lime);
   border-radius: 2px;
+  margin-right: 0.5rem;
 }
 
 /* ── NUMBER INPUT FORM ───────────────────────────── */
@@ -355,7 +363,68 @@ body {
 
 .bingo-cell:hover .cell-tooltip { display: block; }
 
-/* ── NUMBER OVERVIEW GRID ────────────────────────── */
+/* ══════════════════════════════════════════════════
+   NUMMER-ÜBERSICHT + HEATMAP-TOGGLE
+   ══════════════════════════════════════════════════ */
+
+/* ── Toggle-Schalter über der Heatmap ────────────── */
+.heatmap-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+  margin-left: auto;
+}
+
+.heatmap-toggle-text {
+  font-family: 'Exo 2', sans-serif;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  transition: color 0.2s ease;
+  user-select: none;
+}
+
+.heatmap-toggle-text.state-active { color: var(--text); }
+
+.heatmap-toggle-switch {
+  position: relative;
+  width: 46px;
+  height: 25px;
+  background: var(--bg);
+  border: 1px solid var(--border2);
+  border-radius: 999px;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
+}
+
+.heatmap-toggle-switch::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 19px;
+  height: 19px;
+  border-radius: 50%;
+  background: var(--text-soft);
+  transition: transform 0.25s cubic-bezier(.4,0,.2,1), background 0.25s ease, box-shadow 0.25s ease;
+}
+
+.heatmap-toggle-switch.is-on {
+  background: linear-gradient(90deg, var(--heat-cold), var(--heat-mid) 55%, var(--heat-hot));
+  border-color: rgba(239,68,68,0.45);
+  box-shadow: 0 0 10px rgba(239,68,68,0.25);
+}
+
+.heatmap-toggle-switch.is-on::after {
+  transform: translateX(21px);
+  background: #fff;
+  box-shadow: 0 0 6px rgba(0,0,0,0.35);
+}
+
+/* ── Grid-Layout ──────────────────────────────────── */
 .num-overview {
   display: grid;
   grid-template-columns: repeat(10, 1fr);
@@ -374,15 +443,56 @@ body {
   background: var(--surface2);
   color: var(--text-muted);
   border: 1px solid var(--border);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.015);
   position: relative;
   cursor: default;
-  transition: all 0.2s;
+  transition: background 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease, color 0.25s ease, transform 0.2s ease;
 }
 
+/* ── Heatmap-Modus (Standard): Farbverlauf blau → gelb → rot ──
+   Der Verlauf wird zweistufig mit color-mix() gebaut, gesteuert
+   über die Inline-Variable --heat (0 = kalt, 1 = heiß). */
 .num-cell.marked {
-  background: rgba(59,130,246,0.15);
-  border-color: rgba(59,130,246,0.4);
-  color: #93c5fd;
+  background:
+    radial-gradient(ellipse at 50% 30%, rgba(0,0,0, calc(0.10 + var(--heat) * 0.08)), transparent 72%),
+    linear-gradient(135deg, rgba(255,255,255, calc((1 - var(--heat)) * 0.10)), transparent 65%),
+    color-mix(in oklab,
+      color-mix(in oklab, var(--heat-cold) calc(100% - min(var(--heat) * 200%, 100%)), var(--heat-mid))
+        calc(100% - max((var(--heat) - 0.5) * 200%, 0%)),
+      var(--heat-hot)
+    );
+  border-color: color-mix(in oklab, var(--heat-hot) calc(25% + var(--heat) * 55%), var(--border2));
+  color: #ffffff;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.8), 0 0 1px rgba(0,0,0,0.6);
+  box-shadow:
+    inset 0 0 10px rgba(255,255,255, calc((1 - var(--heat)) * 0.06)),
+    0 0 calc(4px + var(--heat) * 10px) rgba(239,68,68, calc(0.10 + var(--heat) * 0.30));
+}
+
+.num-cell.marked:hover {
+  transform: translateY(-2px) scale(1.06);
+  border-color: var(--heat-hot);
+  box-shadow: 0 0 14px rgba(239,68,68,0.4);
+  z-index: 2;
+}
+
+/* ── Normal-Modus: Toggle steht auf "aus" ──
+   Ein Container mit dieser Klasse blendet die Heat-Farben aus
+   und zeigt stattdessen die einheitliche Akzentfarbe (wie beim
+   Bingo-Grid), damit klar zwischen "markiert" / "nicht markiert"
+   unterschieden wird, ohne die Hitze-Information. */
+.num-overview.heat-off .num-cell.marked {
+  background: rgba(163,230,53,0.14);
+  border-color: var(--lime-dim);
+  color: var(--lime-text);
+  text-shadow: none;
+  box-shadow: inset 0 0 12px rgba(163,230,53,0.08);
+}
+
+.num-overview.heat-off .num-cell.marked:hover {
+  transform: translateY(-2px) scale(1.06);
+  border-color: var(--lime);
+  box-shadow: 0 0 10px var(--lime-glow);
 }
 
 .num-cell .cell-tooltip {
@@ -405,6 +515,24 @@ body {
 }
 
 .num-cell:hover .cell-tooltip { display: block; }
+
+/* ── Farb-Legende (optional, unter dem Grid) ─────── */
+.heat-legend {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.9rem;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+.heat-legend-bar {
+  flex: 1;
+  height: 8px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--heat-cold), var(--heat-mid) 50%, var(--heat-hot));
+  border: 1px solid var(--border2);
+}
 
 /* ── HISTORY TABLE ───────────────────────────────── */
 .data-table {
@@ -624,8 +752,8 @@ body {
   .mark-form { flex-direction: column; }
   .mark-form input[type="number"] { width: 100%; }
   .bingo-cell { font-size: 0.9rem; }
+  .card-title { flex-wrap: wrap; gap: 0.6rem; }
 }
-
 
 .kpi-stat-grid {
 	display: grid;

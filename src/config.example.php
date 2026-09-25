@@ -27,4 +27,8 @@
 		"127_0_0_5"
 	);
 
+	#Viewing page settings (To only allow viewing of the game without registration)
+	$config["viewing_enabled"] = false;		# If true, the game can be viewed without registration. If false, only registered players can view the game.
+	$config["viewing_token"] = "1234";	# Token for viewing the game. (/view.php?token=1234). A Token is required.
+
 ?>

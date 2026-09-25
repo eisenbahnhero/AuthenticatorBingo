@@ -2,9 +2,11 @@
 
     $all_user_events = array();
 
-    function add_event(string $type, array $data){
+    function add_event(string $type, array $data, string $display_text_long, string $display_text_short) {
         global $all_user_events;
         $data["type"] = $type;
+        $data["display_text_long"] = $display_text_long;
+        $data["display_text_short"] = $display_text_short;
         $data["timestamp"] = time();
         $all_user_events[] = $data;
     }

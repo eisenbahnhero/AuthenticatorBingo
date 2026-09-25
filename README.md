@@ -29,6 +29,7 @@ A new round starts every month with fresh cards.
 - **Monthly rounds** — each month is an independent game saved as a JSON file
 - **Leaderboard & history** — track bingos per round and across all rounds
 - **Archive** — browse all past months
+- **Read-only viewing** — share the current game and its history without requiring viewers to register
 - **Access control** — whitelist specific players via IP or Windows authentication
 - **Exchange directory** — lightweight file-based mechanism for broadcasting new numbers to all clients
 
@@ -48,15 +49,21 @@ A new round starts every month with fresh cards.
 ```
 AuthenticatorBingo/
 ├── index.php              # Entry point, routing, and game loop
+├── view.php               # Token-protected read-only viewing page
+├── cron.php               # Scheduled achievement snapshot and alert check
+├── achievement_snapshot.json # Stored achievement snapshot for comparison
 ├── src/
 │   ├── config.php         # All configuration settings
 │   ├── auth.php           # Player identification (IP or Windows auth)
 │   ├── game.php           # Game class: card generation, marking, bingo detection
+│   ├── events.php         # Event creation and dispatching
 │   ├── achievements.php   # Achievement base class, loading, snapshots, and comparison
 │   ├── achievements/      # Individual achievement implementations
 │   │   ├── BingoCounter/  # Bingo count achievement and its images
+│   │   ├── BingoTrigger/  # Bingo-trigger achievement and its images
 │   │   ├── FirstBlood/    # First bingo achievement and its images
 │   │   ├── Monatssieger/  # Monthly winner achievement and its images
+│   │   ├── MultiKill/      # Simultaneous bingo achievement and its images
 │   │   └── NumberHoarder/ # Number count achievement and its images
 │   └── stylesheet.css     # Application styles
 ├── pages/
@@ -69,6 +76,7 @@ AuthenticatorBingo/
 │   └── no-access.php      # Shown when ACL blocks a user
 ├── data/                  # Monthly game state (e.g. 2026-06.json)
 ├── exchange/              # Temporary files for broadcasting new numbers
+├── docs/                  # Example achievement module and documentation images
 └── favicon/               # App icons
 ```
 
@@ -123,6 +131,10 @@ $config["acl_allowed_players"] = array(
 	"127_0_0_4",
 	"127_0_0_5"
 );
+
+# Read-only viewing page
+$config["viewing_enabled"] = false;
+$config["viewing_token"] = "change-this-token";
 ```
 
 ### Authentication Modes
@@ -135,6 +147,25 @@ $config["acl_allowed_players"] = array(
 ### Access Control
 
 Set `use_acl` to `true` and list the allowed player identifiers in `acl_allowed_players`. Anyone not on the list sees the no-access page. Set `use_acl` to `false` to allow anyone who can reach the server.
+
+### Read-only Viewing
+
+The optional viewing page allows people to see the current round, leaderboard, statistics, number history, archive, and game rules without registering as players or receiving a bingo card. It is intended for spectators, dashboards, or sharing the game with a team.
+
+Enable it in `src/config.php`:
+
+```php
+$config["viewing_enabled"] = true;
+$config["viewing_token"] = "use-a-long-random-token";
+```
+
+Then open the following URL, replacing the example values with your own host and token:
+
+```text
+https://your-host.example/view.php?token=use-a-long-random-token
+```
+
+The token is required on every request. If viewing is disabled or the token is missing or incorrect, the page refuses access. Use a long, unpredictable token and avoid sharing it publicly if the game data should remain private. The viewing page is read-only; visitors cannot register players or submit numbers from it.
 
 ---
 
@@ -169,6 +200,12 @@ Achievements are evaluated from the current game history for every registered pl
 - `getAchievementName()` returns the stable technical name used in snapshots and comparisons.
 
 The application calls `getAchievementSnapshot()` before and after a number is marked. The snapshots are compared by player and achievement name. A newly present achievement triggers `new_achievement_unlocked`; a higher level triggers `next_achievement_level_reached`.
+
+If new achievement levels should trigger alerts, run `cron.php` regularly as a scheduled task. For example, configure the Windows Task Scheduler to execute the following command at the desired interval, replacing `C:\PATH` with the actual project path:
+
+```text
+php C:\PATH\cron.php
+```
 
 ### Current achievements
 

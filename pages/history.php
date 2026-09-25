@@ -233,24 +233,54 @@
 
 
 
-					<!-- Number overview grid -->
 					<div class="card">
-						<div class="card-title">Alle Nummern (10–99)</div>
-						<div class="num-overview">
-							<?php
-								for($n = 10; $n <= 99; $n++){
-									if($current_game->is_marked($n)){
-										$who = $current_game->who_had_marked($n);
-										echo "<div class='num-cell marked'>";
-										echo "<span class='cell-tooltip'>{$who['player']}<br>" . date("d.m.Y H:i", $who["timestamp"]) . "</span>";
-									} else {
-										echo "<div class='num-cell'>";
-									}
-									echo $n . "</div>";
-								}
-							?>
-						</div>
-					</div>
+    <div class="card-title">
+        Alle Nummern (10–99)
+        <div class="heatmap-toggle">
+            <span class="heatmap-toggle-text state-active" data-off-label>Normal</span>
+			<div class="heatmap-toggle-switch" id="heatToggle"></div>
+            <span class="heatmap-toggle-text" data-on-label>Heatmap</span>
+        </div>
+    </div>
+
+			<div class="num-overview heat-off" id="numGrid">
+        <?php
+            $number_counts = [];
+            $max_number_count = 0;
+            for($number = 10; $number <= 99; $number++){
+                $number_counts[$number] = $current_game->how_often_marked($number);
+                $max_number_count = max($max_number_count, $number_counts[$number]);
+            }
+
+            for($n = 10; $n <= 99; $n++){
+                $ho = $number_counts[$n];
+                $heat = $max_number_count > 0 ? round($ho / $max_number_count, 3) : 0;
+                if($ho > 0){
+                    $who = $current_game->who_had_marked($n);
+                    echo "<div class='num-cell marked' style='--heat: {$heat};'>";
+                    echo "<span class='cell-tooltip'>{$who['player']}<br>" . date("d.m.Y H:i", $who["timestamp"]) . "<br> $ho mal markiert</span>";
+                } else {
+                    echo "<div class='num-cell' style='--heat: 0;'>";
+                }
+                echo $n . "</div>";
+            }
+        ?>
+    </div>
+</div>
+
+<script>
+const toggle = document.getElementById('heatToggle');
+const grid   = document.getElementById('numGrid');
+const offLabel = document.querySelector('[data-off-label]');
+const onLabel  = document.querySelector('[data-on-label]');
+
+toggle.addEventListener('click', () => {
+    const isOn = toggle.classList.toggle('is-on');
+    grid.classList.toggle('heat-off', !isOn);
+    offLabel.classList.toggle('state-active', !isOn);
+    onLabel.classList.toggle('state-active', isOn);
+});
+</script>
 
 <br>
 

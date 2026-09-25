@@ -2,3 +2,4 @@ data/*
 exchange/*
 oilprices/*
 src/config.php
+achievement_snapshot.json

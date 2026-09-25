@@ -93,7 +93,7 @@
                     $data = array();
                     $data['player'] = $curr_snap2['name'];
                     $data['achievement'] = $achievement_name;
-                    add_event("new_achievement_unlocked", $data);
+                    add_event("new_achievement_unlocked", $data, $curr_snap2['name'] . ' hat das Achievement "' . $achievement_name . '" freigeschaltet', $curr_snap2['name'] . ': ' . $achievement_name);
                     continue;
                 }
 
@@ -103,7 +103,7 @@
                     $data['player'] = $curr_snap2['name'];
                     $data['achievement'] = $achievement_name;
                     $data['level'] = $achievement_level;
-                    add_event("next_achievement_level_reached", $data);
+                    add_event("next_achievement_level_reached", $data, $curr_snap2['name'] . ' hat bei "' . $achievement_name . '" ein neues Level erreicht: Level ' . $achievement_level, $curr_snap2['name'] . ': ' . $achievement_name . ' Level ' . $achievement_level);
                 }
             }
         }
